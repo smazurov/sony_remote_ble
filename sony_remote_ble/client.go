@@ -259,7 +259,7 @@ func (c *Client) Connect(address string) error {
 	}
 
 	// Connect to device
-	device, err := c.adapter.Connect(bluetooth.Address{MACAddress: bluetooth.MACAddress{MAC: addr}}, bluetooth.ConnectionParams{})
+	device, err := c.adapter.Connect(bluetooth.Address{MAC: addr}, bluetooth.ConnectionParams{})
 	if err != nil {
 		c.lastError = fmt.Errorf("failed to connect: %w", err)
 		c.state = Error
