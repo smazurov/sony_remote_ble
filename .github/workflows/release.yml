@@ -73,9 +73,25 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
+      - name: Get latest tag
+        id: latest_tag
+        run: |
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LATEST_TAG" ]; then
+            echo "tag=${LATEST_TAG}-dev" >> $GITHUB_OUTPUT
+            echo "name=${LATEST_TAG} Development Build" >> $GITHUB_OUTPUT
+          else
+            echo "tag=nightly" >> $GITHUB_OUTPUT
+            echo "name=Nightly Build" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: '*/sony-remote-*'
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || steps.latest_tag.outputs.tag }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || steps.latest_tag.outputs.name }}
+          prerelease: ${{ github.ref_type != 'tag' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
