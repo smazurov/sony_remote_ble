@@ -1,144 +1,220 @@
-# Sony Camera Bluetooth Remote
+# Sony Camera Remote (BLE)
 
-A Terminal User Interface (TUI) application for controlling Sony cameras via Bluetooth Low Energy (BLE) using Go.
+A terminal-based remote control for Sony cameras using Bluetooth Low Energy (BLE). Control your Sony camera wirelessly with focus, shutter, zoom, and recording commands through an intuitive text user interface.
 
 ## Features
 
-- **Device Discovery**: Scan and connect to Sony cameras automatically
-- **Camera Controls**:
-  - Focus (manual and auto)
-  - Shutter (half and full press)
-  - Zoom (in/out)
-  - Record toggle
-  - Custom button (C1)
-  - Quick photo capture
-- **Real-time Feedback**: Visual button states and command logging
-- **Cross-platform**: Supports Linux, macOS, and Windows
-- **ARM Support**: Designed for compilation on ARM64 devices
+- **Device Discovery**: Automatically scan for nearby Sony cameras
+- **Real-time Control**: Focus, shutter, zoom, autofocus, and recording controls
+- **Cross-platform**: Works on Linux and macOS
+- **TUI Interface**: Clean terminal interface with visual feedback
+- **Library Support**: Can be used as a Go library for custom applications
 
-## Requirements
+## Supported Cameras
 
-- Go 1.21 or later
-- Bluetooth Low Energy adapter
-- Sony camera with Bluetooth support (tested with α7 series)
-
-## Supported Sony Cameras
-
-This application should work with Sony cameras that support Bluetooth remote control, including:
-- Sony α7 series (α7, α7R, α7S, α7 II, α7R II, α7S II, α7 III, α7R III, α7S III, α7 IV, α7R IV, α7R V)
-- Sony α6000 series
+This tool works with Sony cameras that support Bluetooth Low Energy remote control, including:
+- Sony Alpha series (ILCE models)
 - Sony FX series
-- Many Sony Cyber-shot models with Bluetooth
+- Sony Cyber-shot series (DSC models)
 
 ## Installation
 
-### Building from source
+### Pre-built Binaries
+
+Download the latest release for your platform from the [releases page](https://github.com/smazurov/sony_remote_ble/releases).
+
+### From Source
 
 ```bash
-git clone <repository-url>
-cd videonode_ble
-go mod tidy
-go build -o sony-camera-remote
+git clone https://github.com/smazurov/sony_remote_ble.git
+cd sony_remote_ble
+go build -o sony-remote
 ```
 
-### Cross-compilation for ARM64
+## Setup and Pairing
 
-```bash
-GOOS=linux GOARCH=arm64 go build -o sony-camera-remote-arm64
-```
+**Important**: Your Sony camera must be paired with your computer through system Bluetooth settings before using this tool.
+
+### Pairing Steps
+
+1. **Enable Bluetooth on your camera**:
+   - Go to camera's Network menu
+   - Enable Bluetooth function
+   - Set to "Remote Control" mode
+
+2. **Pair via system settings**:
+   - **Linux**: Use `bluetoothctl` or your desktop's Bluetooth manager
+   - **macOS**: System Preferences → Bluetooth
+   - Look for your camera model (e.g., "ILCE-7M4", "FX30")
+   - Complete the pairing process
+
+3. **Run the remote**:
+   ```bash
+   ./sony-remote
+   ```
 
 ## Usage
 
-1. **Pair your Sony camera** with your device:
-   - Enable Bluetooth on your camera (Camera Settings → Network → Bluetooth)
-   - Put camera in pairing mode (usually under Bluetooth settings)
-   - The camera must be paired before it will accept control commands
-2. **Run the application**:
-   ```bash
-   ./sony-camera-remote
-   ```
-3. **Scan for devices** by pressing `Tab`
-4. **Select and connect** to your camera using arrow keys and Enter
-5. **Control your camera** using the keyboard shortcuts
+### Terminal Interface
 
-## Controls
+1. **Launch**: Run `./sony-remote`
+2. **Scan**: Press `Tab` to scan for paired Sony cameras
+3. **Select**: Use `↑/↓` or `k/j` to navigate devices
+4. **Connect**: Press `Enter` to connect to selected camera
+5. **Control**: Use keyboard shortcuts to control your camera
 
-### Device List Mode
-- `↑/↓` or `k/j` - Navigate devices
-- `Tab` - Scan for devices
-- `Enter` - Connect to selected device
-- `Esc` - Stop scanning
-- `q` - Quit application
+### Camera Controls
 
-### Camera Control Mode
-- `F/f` - Focus control
-- `S/s` - Shutter control
-- `Z/z` - Zoom out/in
-- `A/a` - AutoFocus
-- `R/r` - Record toggle
-- `C/c` - Custom button (C1)
-- `Space` - Quick photo (focus + shutter sequence)
-- `Esc` - Return to device list
-- `q` - Quit application
+Once connected, use these keyboard shortcuts:
 
-## Protocol Details
+- **F/f** - Focus control
+- **S/s** - Shutter control
+- **Z/z** - Zoom out/in
+- **A** - Autofocus
+- **Space** - Quick shot (take photo)
+- **R** - Toggle recording
+- **C** - Custom button (C1)
+- **Esc** - Back to device list
+- **Q** - Quit application
 
-This application uses the Sony Camera Bluetooth Low Energy protocol:
+### Troubleshooting
 
+**Camera not appearing in scan?**
+- Ensure camera is paired via system Bluetooth settings
+- Check camera's Bluetooth is enabled and in "Remote Control" mode
+- Try moving closer to the camera
+
+**Connection fails?**
+- Verify the camera is paired (not just discovered)
+- Restart both camera and computer's Bluetooth
+- Some cameras require re-pairing after being turned off
+
+**Commands not working?**
+- Camera must be in appropriate mode (not in menu, sleep, etc.)
+- Some commands only work in specific camera modes
+- Check camera's remote control settings
+
+## Library Usage
+
+This project can be used as a Go library for building custom Sony camera control applications:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/smazurov/sony_remote_ble/sony_remote_ble"
+)
+
+func main() {
+    // Create client
+    client, err := sony_remote_ble.NewClient()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Disconnect()
+
+    // Scan for devices
+    ctx := context.Background()
+    deviceChan := make(chan sony_remote_ble.DeviceInfo, 10)
+
+    err = client.ScanForDevices(ctx, deviceChan)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Wait for a device
+    device := <-deviceChan
+    fmt.Printf("Found: %s\n", device.Name)
+
+    // Connect and take photo
+    err = client.Connect(device.Address)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    err = client.TakePhoto()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Photo taken!")
+}
+```
+
+### Available Commands
+
+The library provides these camera commands:
+
+- `focus_down` / `focus_up` - Focus control
+- `shutter_half_down` / `shutter_half_up` - Half-press shutter
+- `shutter_full_down` / `shutter_full_up` - Full shutter press
+- `zoom_in_down` / `zoom_in_up` - Zoom controls
+- `zoom_out_down` / `zoom_out_up` - Zoom controls
+- `autofocus_down` / `autofocus_up` - Autofocus
+- `record_toggle` - Start/stop recording
+- `c1_down` / `c1_up` - Custom button
+
+### High-level Methods
+
+- `TakePhoto()` - Complete photo capture sequence
+- `SendCommand(cmd SonyCommand)` - Send individual command
+- `SendCommandSequence(cmds []SonyCommand, delay time.Duration)` - Send command sequence
+
+## Platform Notes
+
+### Linux
+- Requires BlueZ bluetooth stack
+- Uses MAC addresses for device identification
+- May require sudo for bluetooth access depending on system configuration
+
+### macOS
+- Uses Core Bluetooth framework
+- Uses UUID for device identification
+- Requires location permissions for BLE scanning
+
+## Technical Details
+
+- **Protocol**: Bluetooth Low Energy (BLE/GATT)
 - **Service UUID**: `8000ff00-ff00-ffff-ffff-ffffffffffff`
-- **Characteristic UUID**: `0000ff01-0000-1000-8000-00805f9b34fb`
+- **Characteristic UUID**: `8001ff00-ff00-ffff-ffff-ffffffffffff`
+- **Go Version**: 1.21+
+- **Dependencies**: `tinygo.org/x/bluetooth`, `github.com/charmbracelet/bubbletea`
 
-Commands are sent as byte arrays to control different camera functions.
+## Building
 
-## Troubleshooting
-
-### Connection Issues
-- Ensure your camera is paired via the camera's Bluetooth menu (not OS settings)
-- Make sure the camera's Bluetooth is enabled and device is still in pairing list
-- Sony cameras reject commands from unpaired devices and will disconnect immediately
-- Try restarting both the camera and the application
-
-### No Devices Found
-- Check that your Bluetooth adapter is working
-- Ensure the camera is nearby and in pairing mode
-- Try scanning multiple times
-
-### Commands Not Working
-- Verify the camera is fully connected (green status indicator)
-- Some cameras may require specific modes to be enabled
-- Check the log output for error messages
-
-## Development
-
-### Project Structure
-```
-videonode_ble/
-├── main.go                 # Application entry point
-├── internal/
-│   ├── bluetooth/          # BLE communication
-│   │   ├── client.go       # Connection management
-│   │   └── commands.go     # Sony camera commands
-│   └── ui/                 # TUI components
-│       ├── model.go        # Application state
-│       ├── view.go         # UI rendering
-│       └── styles.go       # Visual styling
-└── README.md
+### Local Build
+```bash
+go build -ldflags "-s -w -X main.version=v0.0.1" -o sony-remote
 ```
 
-### Dependencies
-- [TinyGo Bluetooth](https://github.com/tinygo-org/bluetooth) - BLE communication
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
-- [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
+### Cross-platform Builds
+The project uses GitHub Actions for automated cross-platform builds. See `.github/workflows/release.yml` for the complete build matrix.
 
-## License
+## Limitations
 
-MIT License - see LICENSE file for details.
+- Cannot detect pairing status during scanning - cameras must be pre-paired
+- Some advanced camera features may not be available via BLE
+- Connection stability depends on Bluetooth hardware and distance
+- Platform-specific Bluetooth address formats require different handling
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-## Acknowledgments
+## License
 
-- Sony camera protocol reverse engineering by [Greg Leeds](https://gregleeds.com/reverse-engineering-sony-camera-bluetooth/)
-- Additional protocol details from [freemote project](https://github.com/tao-j/freemote)
+MIT License - see [LICENSE](LICENSE) file for details.
+
+## Credits
+
+- Reverse engineering research by [Greg Leed](https://gregleeds.com/reverse-engineering-sony-camera-bluetooth/)
+- Built with [tinygo.org/x/bluetooth](https://tinygo.org/x/bluetooth) for cross-platform BLE support
+- Terminal UI powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea)
