@@ -82,8 +82,10 @@ type Client struct {
 type DeviceInfo struct {
 	// Name is the advertised device name (e.g., "ILCE-7M4", "FX30")
 	Name string
-	// Address is the Bluetooth MAC address in format "AA:BB:CC:DD:EE:FF"
-	Address string
+	// Address is the platform-specific bluetooth address object
+	Address bluetooth.Address
+	// AddressStr is the string representation of the address for display
+	AddressStr string
 	// RSSI is the received signal strength indicator in dBm (typically -30 to -100)
 	RSSI int16
 }
@@ -190,9 +192,10 @@ func (c *Client) ScanForDevices(ctx context.Context, deviceChan chan<- DeviceInf
 					// Check if this might be a Sony camera
 					if containsSonyIdentifier(name) {
 						deviceChan <- DeviceInfo{
-							Name:    name,
-							Address: result.Address.String(),
-							RSSI:    result.RSSI,
+							Name:       name,
+							Address:    result.Address,
+							AddressStr: result.Address.String(),
+							RSSI:       result.RSSI,
 						}
 					}
 				}
@@ -224,45 +227,35 @@ func (c *Client) StopScan() {
 	}
 }
 
-// Connect establishes a connection to a Sony camera at the specified Bluetooth address.
+// Connect establishes a connection to a Sony camera using the provided Bluetooth address.
 // The function performs the complete connection sequence including service and characteristic discovery.
 //
-// The address should be in the format "AA:BB:CC:DD:EE:FF" (MAC address format).
+// The address should be obtained from a DeviceInfo struct during device scanning.
 // After successful connection, the client will be ready to send commands to the camera.
 //
 // Parameters:
-//   - address: Bluetooth MAC address of the camera (e.g., "12:34:56:78:9A:BC")
+//   - address: Bluetooth address object from device scanning
 //
 // Returns an error if:
-//   - The address format is invalid
 //   - The connection cannot be established
 //   - The Sony camera service is not found on the device
 //   - The command characteristic is not available
 //
 // Example:
 //
-//	err := client.Connect("12:34:56:78:9A:BC")
+//	// Get device from scanning
+//	device := <-deviceChan
+//	err := client.Connect(device.Address)
 //	if err != nil {
 //		log.Fatal("Connection failed:", err)
 //	}
 //	fmt.Println("Connected to camera successfully")
-func (c *Client) Connect(address string) error {
+func (c *Client) Connect(address bluetooth.Address) error {
 	c.state = Connecting
 	c.lastError = nil
 
-	// Parse the address
-	mac, err := bluetooth.ParseMAC(address)
-	if err != nil {
-		c.lastError = fmt.Errorf("invalid address: %w", err)
-		c.state = Error
-		return c.lastError
-	}
-
-	// Create bluetooth address
-	addr := bluetooth.Address{MACAddress: bluetooth.MACAddress{MAC: mac}}
-
 	// Connect to device
-	device, err := c.adapter.Connect(addr, bluetooth.ConnectionParams{})
+	device, err := c.adapter.Connect(address, bluetooth.ConnectionParams{})
 	if err != nil {
 		c.lastError = fmt.Errorf("failed to connect: %w", err)
 		c.state = Error
@@ -303,7 +296,7 @@ func (c *Client) Connect(address string) error {
 
 	c.char = chars[0]
 	c.state = Connected
-	c.deviceName = address // Could be enhanced to get actual device name
+	c.deviceName = address.String() // Could be enhanced to get actual device name
 
 	return nil
 }

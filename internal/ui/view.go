@@ -55,7 +55,7 @@ func (m *Model) deviceListView() string {
 				}
 
 				deviceLine := fmt.Sprintf("%s%s (%s) RSSI: %d%s",
-					prefix, device.Name, device.Address, device.RSSI, scanIndicator)
+					prefix, device.Name, device.AddressStr, device.RSSI, scanIndicator)
 				sections = append(sections, style.Render(deviceLine))
 			}
 		} else if m.scanning {

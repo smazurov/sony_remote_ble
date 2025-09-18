@@ -201,7 +201,7 @@ func (m *Model) handleDeviceListKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.scanning {
 				m.client.StopScan()
 			}
-			return m, m.connect(device.Address)
+			return m, m.connect(device)
 		}
 
 	case "esc", "escape":
@@ -295,12 +295,12 @@ func (m *Model) addLog(message string) {
 func (m *Model) addDevice(device sony_remote_ble.DeviceInfo) {
 	// Check if device already exists
 	for _, d := range m.devices {
-		if d.Address == device.Address {
+		if d.AddressStr == device.AddressStr {
 			return
 		}
 	}
 	m.devices = append(m.devices, device)
-	m.addLog(fmt.Sprintf("Found: %s (%s)", device.Name, device.Address))
+	m.addLog(fmt.Sprintf("Found: %s (%s)", device.Name, device.AddressStr))
 }
 
 // Command functions
@@ -331,9 +331,9 @@ func (m *Model) performScan() tea.Cmd {
 	}
 }
 
-func (m *Model) connect(address string) tea.Cmd {
+func (m *Model) connect(device sony_remote_ble.DeviceInfo) tea.Cmd {
 	return func() tea.Msg {
-		err := m.client.Connect(address)
+		err := m.client.Connect(device.Address)
 		return connectionMsg{
 			connected: err == nil,
 			err:       err,
