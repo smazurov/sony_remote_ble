@@ -251,15 +251,18 @@ func (c *Client) Connect(address string) error {
 	c.lastError = nil
 
 	// Parse the address
-	addr, err := bluetooth.ParseMAC(address)
+	mac, err := bluetooth.ParseMAC(address)
 	if err != nil {
 		c.lastError = fmt.Errorf("invalid address: %w", err)
 		c.state = Error
 		return c.lastError
 	}
 
+	// Create bluetooth address
+	addr := bluetooth.Address{MACAddress: bluetooth.MACAddress{MAC: mac}}
+
 	// Connect to device
-	device, err := c.adapter.Connect(bluetooth.Address{MAC: addr}, bluetooth.ConnectionParams{})
+	device, err := c.adapter.Connect(addr, bluetooth.ConnectionParams{})
 	if err != nil {
 		c.lastError = fmt.Errorf("failed to connect: %w", err)
 		c.state = Error
